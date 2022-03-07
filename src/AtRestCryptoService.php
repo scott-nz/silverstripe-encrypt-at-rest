@@ -21,6 +21,9 @@ use SilverStripe\Core\Injector\Injector;
 class AtRestCryptoService
 {
 
+    /** @var null|callable Callback function  */
+    protected $fileLocatorCallback = null;
+
     /**
      * @param string   $raw
      * @param null|Key $key
@@ -66,7 +69,6 @@ class AtRestCryptoService
             $encryptedFilename = $currentPath . '.enc';
             File::encryptFile($currentPath, $encryptedFilename, $key);
             $filename = $file->getFilename() . '.enc';
-            $isDeleted = $file->deleteFile();
             $file->File->setField('Filename', $filename);
             $file->write();
 
@@ -76,7 +78,7 @@ class AtRestCryptoService
                 $file->publishFile();
             }
 
-            if (!$isDeleted && file_exists($currentPath)) {
+            if (file_exists($currentPath)) {
                 @unlink($currentPath);
             }
 
@@ -86,7 +88,6 @@ class AtRestCryptoService
                 ->error(sprintf('Encryption exception while parsing "%s": %s', $file->Name, $e->getMessage()));
             return false;
         }
-
     }
 
     /**
@@ -106,7 +107,6 @@ class AtRestCryptoService
             $original = basename($filename);
             $decryptedFilename = str_replace(basename($file->getFilename()), $original, $currentPath);
             File::decryptFile($currentPath, $decryptedFilename, $key);
-            $isDeleted = $file->deleteFile();
             $file->File->setField('Filename', $filename);
             $file->write();
 
@@ -116,7 +116,7 @@ class AtRestCryptoService
                 $file->publishFile();
             }
 
-            if (!$isDeleted && file_exists($currentPath)) {
+            if (file_exists($currentPath)) {
                 @unlink($currentPath);
             }
 
@@ -155,6 +155,15 @@ class AtRestCryptoService
         return Key::LoadFromAsciiSafeString($rawKey);
     }
 
+    /**
+     * Assigns a custom callback in order to provide consumers to resolve the path where the files are stored
+     * In this way any *shared folders* outside the default assets directory can used by consumers
+     */
+    public function setFileLocatorCallback(callable $callback): void
+    {
+        $this->fileLocatorCallback = $callback;
+    }
+
 
     /**
      * @param \SilverStripe\Assets\File $file
@@ -164,6 +173,12 @@ class AtRestCryptoService
      */
     protected function getFullPath($file, $visibility = AssetStore::VISIBILITY_PROTECTED)
     {
+        $callable = $this->fileLocatorCallback;
+
+        if (is_callable($callable)) {
+            return $callable($file, $visibility);
+        }
+
         $assetStore = Injector::inst()->get(AssetStore::class);
 
         $adapter = $visibility === AssetStore::VISIBILITY_PROTECTED
