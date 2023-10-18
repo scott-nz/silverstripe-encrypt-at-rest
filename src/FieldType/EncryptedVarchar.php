@@ -43,7 +43,7 @@ class EncryptedVarchar extends DBVarchar
     public function getDecryptedValue($value)
     {
         // Test if we're actually an encrypted value;
-        if (ctype_xdigit($value) && strlen($value) > 130) {
+        if (is_string($value) && ctype_xdigit($value) && strlen($value) > 130) {
             try {
                 return $this->service->decrypt($value);
             } catch (Exception $e) {
