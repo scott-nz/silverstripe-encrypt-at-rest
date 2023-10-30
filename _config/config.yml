@@ -1,9 +1,10 @@
-DataObject:
+# Add extension to all DataObject sub-classes
+SilverStripe\ORM\DataObject:
   extensions:
-    - EncryptDataObjectFieldsExtension
-EncryptDataObjectFieldsExtension:
-  EncryptedDataObjects:
-    - EncryptDataObject
-File:
+    - Madmatt\EncryptAtRest\Extension\DecryptDataObjectFieldsExtension
+
+# Add .enc files as allowed extensions to provide a way to store files in encrypted format
+# (see AtRestCryptoService->encryptFile() and ->decryptFile()
+SilverStripe\Assets\File:
   allowed_extensions:
-    ["enc"]
+    - enc
